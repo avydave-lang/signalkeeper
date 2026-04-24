@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0F1419">
+<title>Signal Keeper</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0F1419;
+    --ship:      #2A3340;
+    --green:     #4ADE80;
+    --red:       #F87171;
+    --text:      #E5E7EB;
+    --muted:     #9CA3AF;
+    --amber:     #F59E0B;
+    --fog:       rgba(255,255,255,0.08);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    overflow: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ── Screens ─────────────────────────────────────────── */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .screen.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── Title screen ─────────────────────────────────────── */
+  #screen-title {
+    gap: 32px;
+    background: var(--bg);
+  }
+  .title-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .lighthouse-glyph {
+    font-size: 48px;
+    line-height: 1;
+    filter: drop-shadow(0 0 12px var(--amber));
+    animation: pulse-amber 3s ease-in-out infinite;
+  }
+  @keyframes pulse-amber {
+    0%, 100% { filter: drop-shadow(0 0 8px var(--amber)); }
+    50%       { filter: drop-shadow(0 0 20px var(--amber)); }
+  }
+  .app-title {
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--text);
+  }
+  .app-subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .location-name {
+    font-size: 14px;
+    color: var(--amber);
+    letter-spacing: 0.06em;
+    cursor: default;
+  }
+  .streak-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--muted);
+    padding: 6px 14px;
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 20px;
+  }
+  .streak-badge .streak-num {
+    color: var(--amber);
+    font-weight: 500;
+  }
+  .btn-primary {
+    background: transparent;
+    border: 1px solid rgba(229,231,235,0.3);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    padding: 14px 48px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-primary:active {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .btn-small {
+    background: transparent;
+    border: 1px solid rgba(156,163,175,0.25);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  /* ── Opening card ─────────────────────────────────────── */
+  #screen-opening {
+    gap: 28px;
+    text-align: center;
+  }
+  .opening-location {
+    font-size: 14px;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .opening-weather {
+    font-size: 20px;
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 300px;
+  }
+  .opening-narrative {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.8;
+    max-width: 280px;
+  }
+
+  /* ── Game screen ──────────────────────────────────────── */
+  #screen-game {
+    padding: 0;
+    justify-content: flex-start;
+    background: var(--bg);
+  }
+  #progress-bar-wrap {
+    width: 100%;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+  #progress-bar {
+    height: 3px;
+    background: rgba(245,158,11,0.4);
+    width: 0%;
+    transition: width 1s linear;
+  }
+  #game-canvas {
+    flex: 1;
+    width: 100%;
+    display: block;
+    cursor: pointer;
+  }
+  #finish-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: transparent;
+    border: 1px solid rgba(156,163,175,0.2);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Break screen ─────────────────────────────────────── */
+  #screen-break {
+    gap: 20px;
+    text-align: center;
+  }
+  .break-title {
+    font-size: 20px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .break-sub {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .break-bar-wrap {
+    width: 200px;
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    margin-top: 8px;
+  }
+  .break-bar {
+    height: 2px;
+    background: var(--amber);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  /* ── Closing card ─────────────────────────────────────── */
+  #screen-closing {
+    gap: 28px;
+    text-align: center;
+  }
+  .closing-count {
+    font-size: 48px;
+    font-weight: 300;
+    color: var(--amber);
+    line-height: 1;
+  }
+  .closing-label {
+    font-size: 16px;
+    color: var(--muted);
+    margin-top: -12px;
+  }
+  .closing-narrative {
+    font-size: 20px;
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 280px;
+  }
+
+  /* ── Phase transition ─────────────────────────────────── */
+  #screen-phase {
+    gap: 24px;
+    text-align: center;
+  }
+  .phase-title {
+    font-size: 20px;
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 280px;
+  }
+  .phase-rule {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.8;
+    max-width: 260px;
+  }
+
+  /* ── Parent screen ────────────────────────────────────── */
+  #screen-parent {
+    justify-content: flex-start;
+    padding: 32px 24px 24px;
+    overflow-y: auto;
+    gap: 24px;
+    align-items: stretch;
+  }
+  .parent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .parent-title {
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .parent-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px;
+    font-family: inherit;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .stat-value {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .chart-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chart-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .parent-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid rgba(248,113,113,0.3);
+    color: #F87171;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-export {
+    background: transparent;
+    border: 1px solid rgba(245,158,11,0.4);
+    color: var(--amber);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  /* ── Lighthouse glow overlay (canvas) ────────────────── */
+  #lh-glow {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    filter: drop-shadow(0 0 8px var(--amber));
+    z-index: 10;
+  }
+  #lh-glow.flash { opacity: 1; }
+
+  /* ── N-back instruction overlay ──────────────────────── */
+  #nback-hint {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    color: var(--muted);
+    pointer-events: none;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #nback-hint.visible { opacity: 1; }
+
+  /* ── First-run overlay ────────────────────────────────── */
+  #screen-firstrun {
+    gap: 24px;
+    text-align: center;
+  }
+  .firstrun-label {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  #initials-input {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 20px;
+    text-align: center;
+    padding: 12px 20px;
+    border-radius: 4px;
+    width: 120px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    outline: none;
+  }
+  #initials-input:focus {
+    border-color: rgba(245,158,11,0.5);
+  }
+</style>
+</head>
+<body>
+
+<!-- Lighthouse glow on correct response -->
+<div id="lh-glow">🔆</div>
+
+<!-- N-back hint line (game screen) -->
+<div id="nback-hint">Watch the sails — tap if it matches 2 ships ago</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SCREENS
+════════════════════════════════════════════════════════ -->
+
+<!-- First-run: ask for initials -->
+<div id="screen-firstrun" class="screen">
+  <div class="lighthouse-glyph">🏮</div>
+  <div class="app-title">Signal Keeper</div>
+  <p class="firstrun-label">Enter your initials to begin</p>
+  <input id="initials-input" type="text" maxlength="3" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="A B">
+  <button class="btn-primary" id="firstrun-btn">Begin</button>
+</div>
+
+<!-- Title screen -->
+<div id="screen-title" class="screen">
+  <div class="title-header">
+    <div class="lighthouse-glyph">🏮</div>
+    <div class="app-title">Signal Keeper</div>
+    <div class="app-subtitle">Lighthouse Watch</div>
+  </div>
+  <div class="location-name" id="title-location">Northern Cape</div>
+  <div class="streak-badge">
+    <span>Streak</span>
+    <span class="streak-num" id="streak-display">0</span>
+    <span>days</span>
+  </div>
+  <button class="btn-primary" id="start-btn">Begin watch</button>
+</div>
+
+<!-- Opening card -->
+<div id="screen-opening" class="screen">
+  <div class="opening-location" id="opening-location">Northern Cape</div>
+  <p class="opening-weather" id="opening-weather">The fog rolls in early tonight.</p>
+  <p class="opening-narrative" id="opening-narrative">Ships are moving through the strait.<br>Keep watch on the signals.</p>
+  <button class="btn-primary" id="opening-continue">Ready</button>
+</div>
+
+<!-- Phase transition -->
+<div id="screen-phase" class="screen">
+  <div class="lighthouse-glyph" style="font-size:32px">🌫️</div>
+  <p class="phase-title" id="phase-title">Fog thickens.</p>
+  <p class="phase-rule" id="phase-rule">Now watch the sails.<br>Tap if this ship's symbol<br>matches the one from 2 ships ago.</p>
+  <button class="btn-primary" id="phase-continue">Understood</button>
+</div>
+
+<!-- Game screen -->
+<div id="screen-game" class="screen active" style="opacity:0;pointer-events:none">
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+  <canvas id="game-canvas"></canvas>
+  <button id="finish-btn">Finish early</button>
+</div>
+
+<!-- Mid-session break -->
+<div id="screen-break" class="screen">
+  <div class="lighthouse-glyph">🌊</div>
+  <p class="break-title">The fog clears.<br>The keeper takes a breath.</p>
+  <p class="break-sub">Thirty seconds of open water.</p>
+  <div class="break-bar-wrap"><div class="break-bar" id="break-bar"></div></div>
+</div>
+
+<!-- Closing card -->
+<div id="screen-closing" class="screen">
+  <div class="lighthouse-glyph" style="filter:drop-shadow(0 0 16px #F59E0B)">🏮</div>
+  <div class="closing-count" id="closing-count">0</div>
+  <div class="closing-label">ships guided through</div>
+  <p class="closing-narrative" id="closing-narrative">Clear night. The lamp burns steady.</p>
+  <button class="btn-primary" id="closing-done">Return to shore</button>
+</div>
+
+<!-- Parent screen -->
+<div id="screen-parent" class="screen">
+  <div class="parent-header">
+    <div class="parent-title">Keeper's Log</div>
+    <button class="parent-close" id="parent-close">✕</button>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Days played</div>
+      <div class="stat-value" id="stat-days">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sessions total</div>
+      <div class="stat-value" id="stat-sessions">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Location</div>
+      <div class="stat-value" id="stat-location" style="font-size:16px;padding-top:4px">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Difficulty</div>
+      <div class="stat-value" id="stat-diff">0</div>
+    </div>
+  </div>
+  <div class="chart-section">
+    <div class="chart-label">Daily accuracy — last 14 days</div>
+    <svg id="chart-accuracy" width="100%" height="80" viewBox="0 0 320 80"></svg>
+  </div>
+  <div class="chart-section">
+    <div class="chart-label">Median response time (ms) — last 14 days</div>
+    <svg id="chart-rt" width="100%" height="80" viewBox="0 0 320 80"></svg>
+  </div>
+  <div class="parent-actions">
+    <button class="btn-export" id="export-btn">Export data</button>
+    <button class="btn-danger" id="reset-btn">Reset all data</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════════════
+// CONSTANTS & NARRATIVE DATA
+// ════════════════════════════════════════════════════════════════════
+
+const LIGHTHOUSES = [
+  { name: 'Northern Cape',  weather: 'The fog rolls in early tonight.',         narrative: 'Ships move through the strait.\nKeep watch on the signals.' },
+  { name: 'Broken Reef',    weather: 'Low cloud. Visibility: half a mile.',      narrative: 'The reef claims the careless.\nEach signal counts.' },
+  { name: 'Grey Harbour',   weather: 'A cold front settling from the north.',    narrative: 'Harbour lights flicker in the chop.\nHold steady.' },
+  { name: 'Vane Point',     weather: 'Wind from the west. Choppy swells.',       narrative: 'The point catches every ship.\nStay sharp.' },
+  { name: 'Iron Shore',     weather: 'Overcast. Rain before midnight.',          narrative: 'Iron Shore has no mercy for the slow.\nFocus.' },
+  { name: 'Sable Run',      weather: 'Dense sea fog. Zero visibility beyond the lamp.', narrative: 'Only the signal tells you who is out there.' },
+  { name: 'Kettle Cove',    weather: 'Quiet night. Swells from the south.',      narrative: 'A quiet watch is still a watch.\nStay present.' },
+  { name: 'Cape Desolation',weather: 'Gale warning. Ships running for shelter.', narrative: 'In weather like this, every second matters.' },
+];
+
+const CLOSING_LINES = [
+  'Clear night. The lamp burns steady.',
+  'Another watch completed. The coast holds.',
+  'Fog lifts. The water is calm now.',
+  'All clear. The keeper logs the night.',
+  'The last ship clears the point. Well done.',
+  'Quiet on the strait. A good watch.',
+];
+
+const SYMBOLS = ['●', '▲', '■', '★', '◆', '☽'];
+const SYMBOL_NAMES = ['circle', 'triangle', 'square', 'star', 'diamond', 'crescent'];
+
+// Adaptive difficulty config
+// Each notch: reduce signal duration, increase speed, reduce ITI
+const DIFFICULTY_TABLE = (() => {
+  const tbl = [];
+  // 0 = easiest, ~12 = hardest
+  for (let i = 0; i <= 12; i++) {
+    tbl.push({
+      level:           i,
+      signalDurationMs: Math.max(400, 1500 - i * 100),   // 1500 → 400
+      shipSpeedMs:      Math.max(1500, 3000 - i * 150),  // 3000 → 1500
+      itiMs:            Math.max(400, 1200 - i * 100),   // 1200 → 400
+      nogoRate:         i >= 10 ? 0.30 : 0.25,           // nudge to 30% at top levels
+    });
+  }
+  return tbl;
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════
+
+const State = {
+  initials:        '',
+  currentLighthouse: 0,   // index into LIGHTHOUSES
+  streak:          0,
+  lastPlayedDate:  null,
+  completedSessions: 0,
+  difficultyLevel: 0,
+
+  // Per-session live state (reset each session)
+  sessionId:       null,
+  sessionStart:    null,
+  sessionTrials:   [],
+  trialCount:      0,
+  hitCount:        0,      // for closing card count
+  phase:           'go_nogo',   // 'go_nogo' | 'nback'
+  nbackUnlocked:   false,
+
+  // Adaptive: last 10 trial correctness
+  recentCorrect:   [],
+
+  // Ship history for n-back (symbols)
+  shipHistory:     [],
+};
+
+// ════════════════════════════════════════════════════════════════════
+// PERSISTENCE (localStorage for lightweight settings, IndexedDB for data)
+// ════════════════════════════════════════════════════════════════════
+
+const LS = {
+  save() {
+    localStorage.setItem('sk_state', JSON.stringify({
+      initials:          State.initials,
+      currentLighthouse: State.currentLighthouse,
+      streak:            State.streak,
+      lastPlayedDate:    State.lastPlayedDate,
+      completedSessions: State.completedSessions,
+      difficultyLevel:   State.difficultyLevel,
+      nbackUnlocked:     State.nbackUnlocked,
+    }));
+  },
+  load() {
+    try {
+      const d = JSON.parse(localStorage.getItem('sk_state') || 'null');
+      if (d) Object.assign(State, d);
+    } catch(_) {}
+  },
+};
+
+// ── IndexedDB ──────────────────────────────────────────────────────
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('signalkeeper_v1', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('trials')) {
+        db.createObjectStore('trials', { keyPath: 'trial_id' });
+      }
+      if (!db.objectStoreNames.contains('sessions')) {
+        db.createObjectStore('sessions', { keyPath: 'session_id' });
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function dbPut(store, obj) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(obj);
+    tx.oncomplete = resolve;
+    tx.onerror    = e => reject(e.target.error);
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function dbClear(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).clear();
+    tx.oncomplete = resolve;
+    tx.onerror    = e => reject(e.target.error);
+  });
+}
+
+function uuid() {
+  return crypto.randomUUID ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SCREEN ROUTER
+// ════════════════════════════════════════════════════════════════════
+
+const screens = {};
+document.querySelectorAll('.screen').forEach(el => {
+  screens[el.id.replace('screen-', '')] = el;
+});
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  const target = screens[name];
+  if (target) target.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CANVAS & GAME ENGINE
+// ════════════════════════════════════════════════════════════════════
+
+const canvas  = document.getElementById('game-canvas');
+const ctx     = canvas.getContext('2d');
+
+let gameLoop  = null;   // requestAnimationFrame id
+let gameState = null;   // current game state object
+
+function resizeCanvas() {
+  canvas.width  = canvas.clientWidth * window.devicePixelRatio;
+  canvas.height = canvas.clientHeight * window.devicePixelRatio;
+}
+
+window.addEventListener('resize', () => { if (gameState) resizeCanvas(); });
+
+// ── Drawing helpers ───────────────────────────────────────────────
+
+function drawOcean(W, H) {
+  // Dark sea gradient
+  const grad = ctx.createLinearGradient(0, H * 0.5, 0, H);
+  grad.addColorStop(0, '#0D1821');
+  grad.addColorStop(1, '#060B10');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+  // Sky
+  const sky = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+  sky.addColorStop(0, '#0A0F14');
+  sky.addColorStop(1, '#0F1E2C');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H * 0.5);
+
+  // Horizon line
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.5);
+  ctx.lineTo(W, H * 0.5);
+  ctx.stroke();
+}
+
+function drawFogLayer(W, H, t) {
+  // Slowly drifting fog wisps
+  ctx.save();
+  const drift = (t * 0.00003) % 1;
+  const grad = ctx.createLinearGradient(0, H * 0.3, 0, H * 0.6);
+  grad.addColorStop(0, 'rgba(255,255,255,0)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.06)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-W * drift, H * 0.3, W * 2, H * 0.3);
+  ctx.restore();
+}
+
+function drawFogLine(W, H) {
+  // Vertical marker line where signal is emitted
+  const x = W * 0.42;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.setLineDash([4, 8]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, H * 0.3);
+  ctx.lineTo(x, H * 0.65);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawLighthouse(W, H) {
+  const x = W * 0.88;
+  const y = H * 0.5;
+  const lhH = H * 0.22;
+
+  // Tower
+  ctx.fillStyle = '#374151';
+  ctx.beginPath();
+  ctx.rect(x - 6, y - lhH, 12, lhH);
+  ctx.fill();
+
+  // Lamp housing
+  ctx.fillStyle = '#4B5563';
+  ctx.beginPath();
+  ctx.rect(x - 9, y - lhH - 8, 18, 8);
+  ctx.fill();
+
+  // Amber beacon
+  ctx.fillStyle = '#F59E0B';
+  ctx.shadowColor = '#F59E0B';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(x, y - lhH - 4, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Light sweep (slow rotation)
+  const angle = (Date.now() * 0.001) % (Math.PI * 2);
+  ctx.save();
+  ctx.translate(x, y - lhH - 4);
+  const sweepGrad = ctx.createConicalGradient
+    ? null : null; // fallback: skip conical
+  ctx.globalAlpha = 0.07;
+  ctx.fillStyle = '#F59E0B';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, W * 0.6, angle - 0.15, angle + 0.15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawShip(ship, W, H) {
+  const x   = ship.x * W;
+  const y   = H * 0.47;
+  const DPR = window.devicePixelRatio || 1;
+
+  ctx.save();
+
+  // Hull
+  const hullW = W * 0.12;
+  const hullH = H * 0.04;
+  ctx.fillStyle = '#2A3340';
+  ctx.beginPath();
+  ctx.moveTo(x - hullW * 0.5, y);
+  ctx.lineTo(x + hullW * 0.6, y);
+  ctx.lineTo(x + hullW * 0.5, y + hullH);
+  ctx.lineTo(x - hullW * 0.4, y + hullH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Mast
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y - H * 0.08);
+  ctx.stroke();
+
+  // Sail (shows symbol in n-back phase)
+  if (ship.symbolVisible && ship.symbol !== null) {
+    ctx.fillStyle = 'rgba(100,120,140,0.7)';
+    const sw = hullW * 0.55;
+    const sh = H * 0.065;
+    ctx.beginPath();
+    ctx.rect(x - sw * 0.5, y - H * 0.08, sw, sh);
+    ctx.fill();
+
+    ctx.fillStyle = '#E5E7EB';
+    ctx.font = `${Math.round(sh * 0.75)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(SYMBOLS[ship.symbol], x, y - H * 0.08 + sh * 0.5);
+  }
+
+  // Signal light (go/nogo phase)
+  if (ship.signalVisible && ship.signalColor) {
+    const sy = y - H * 0.12;
+    ctx.shadowColor = ship.signalColor;
+    ctx.shadowBlur  = 14;
+    ctx.globalAlpha = ship.signalAlpha;
+    ctx.fillStyle   = ship.signalColor;
+    ctx.beginPath();
+    ctx.arc(x, sy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+// ── Adaptive difficulty ───────────────────────────────────────────
+
+function getCurrentDifficulty() {
+  const idx = Math.max(0, Math.min(State.difficultyLevel, DIFFICULTY_TABLE.length - 1));
+  return DIFFICULTY_TABLE[idx];
+}
+
+// Call after each trial to potentially adjust difficulty
+function adaptDifficulty() {
+  const recent = State.recentCorrect;
+  if (recent.length < 10) return;
+  const acc = recent.filter(Boolean).length / recent.length;
+  if (acc >= 0.85 && State.difficultyLevel < DIFFICULTY_TABLE.length - 1) {
+    State.difficultyLevel++;
+    LS.save();
+  } else if (acc <= 0.65 && State.difficultyLevel > 0) {
+    State.difficultyLevel--;
+    LS.save();
+  }
+}
+
+// ── Trial creation ────────────────────────────────────────────────
+
+function createTrial(phase, itiMs) {
+  const diff  = getCurrentDifficulty();
+  const lh    = LIGHTHOUSES[State.currentLighthouse].name;
+  const isGo  = Math.random() >= diff.nogoRate;
+  const sym   = Math.floor(Math.random() * SYMBOLS.length);
+
+  // For n-back: determine if this is a match trial
+  let trialType, nbackMatch;
+  if (phase === 'nback') {
+    const prev2 = State.shipHistory.length >= 2 ? State.shipHistory[State.shipHistory.length - 2] : null;
+    nbackMatch = prev2 !== null && prev2 === sym;
+    trialType  = nbackMatch ? 'nback_match' : 'nback_nomatch';
+  } else {
+    trialType  = isGo ? 'go' : 'nogo';
+    nbackMatch = null;
+  }
+
+  return {
+    trial_id:         uuid(),
+    session_id:       State.sessionId,
+    timestamp_ms:     Date.now(),
+    phase,
+    trial_type:       trialType,
+    stimulus:         phase === 'nback' ? SYMBOL_NAMES[sym] : (isGo ? 'green' : 'red'),
+    signal_onset_ms:  null,   // filled at signal show
+    responded:        false,
+    response_time_ms: null,
+    correct:          null,
+    outcome:          null,
+    difficulty_level: State.difficultyLevel,
+    lighthouse:       lh,
+    // Runtime fields (not persisted in raw trial but used for game logic)
+    _isGo:            phase === 'go_nogo' ? isGo : nbackMatch,
+    _symbol:          sym,
+    _phase:           phase,
+    _itiMs:           itiMs,
+    _signalDuration:  diff.signalDurationMs,
+    _shipSpeed:       diff.shipSpeedMs,
+  };
+}
+
+// ── Game session runner ───────────────────────────────────────────
+
+// Session timing constants
+const SESSION_DURATION_MS = 15 * 60 * 1000;  // 15 minutes
+const BREAK_AT_MS         = 7.5 * 60 * 1000; // mid-session break
+const BREAK_DURATION_MS   = 30 * 1000;        // 30-second break
+const NBACK_UNLOCK_SESSION = 10;
+const LIGHTHOUSE_UNLOCK_EVERY = 5;            // sessions per location
+
+function startSession() {
+  State.sessionId    = uuid();
+  State.sessionStart = Date.now();
+  State.sessionTrials = [];
+  State.trialCount   = 0;
+  State.hitCount     = 0;
+  State.recentCorrect = State.recentCorrect.slice(-9); // keep last 9 for continuity
+  State.shipHistory  = [];
+  State.phase        = 'go_nogo';
+
+  resizeCanvas();
+  showScreen('game');
+
+  const progressBar = document.getElementById('progress-bar');
+  let breakTaken    = false;
+  let sessionEnded  = false;
+
+  // Whether to show n-back this session
+  const doNback = State.nbackUnlocked && State.completedSessions >= NBACK_UNLOCK_SESSION;
+
+  // Phase sequence: blocks of ~20 trials, alternating go_nogo / nback when unlocked
+  let blockPhase    = 'go_nogo';
+  let trialsInBlock = 0;
+  const BLOCK_SIZE  = 20;
+
+  let nbackHintEl = document.getElementById('nback-hint');
+
+  function endSession(completed) {
+    if (sessionEnded) return;
+    sessionEnded = true;
+
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    gameLoop = null;
+    gameState = null;
+
+    // Compute session summary stats
+    const trials   = State.sessionTrials;
+    const hits     = trials.filter(t => t.outcome === 'hit');
+    const rtValues = hits.map(t => t.response_time_ms).filter(v => v !== null).sort((a,b)=>a-b);
+    const medRt    = rtValues.length ? rtValues[Math.floor(rtValues.length / 2)] : null;
+    const nogoTrials = trials.filter(t => t.trial_type === 'nogo' || t.trial_type === 'nback_nomatch');
+    const falseAlarms = trials.filter(t => t.outcome === 'false_alarm');
+    const commRate = nogoTrials.length ? falseAlarms.length / nogoTrials.length : 0;
+    const accuracy = trials.length ? trials.filter(t => t.correct).length / trials.length : 0;
+
+    const session = {
+      session_id:           State.sessionId,
+      started_at:           new Date(State.sessionStart).toISOString(),
+      ended_at:             new Date().toISOString(),
+      duration_ms:          Date.now() - State.sessionStart,
+      completed,
+      lighthouse:           LIGHTHOUSES[State.currentLighthouse].name,
+      total_trials:         trials.length,
+      accuracy_pct:         accuracy,
+      median_go_rt_ms:      medRt,
+      commission_error_rate: commRate,
+      final_difficulty_level: State.difficultyLevel,
+      notes:                '',
+    };
+
+    dbPut('sessions', session).catch(console.error);
+
+    // Update streak
+    const today = new Date().toDateString();
+    if (State.lastPlayedDate !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      State.streak = State.lastPlayedDate === yesterday ? State.streak + 1 : 1;
+      State.lastPlayedDate = today;
+    }
+
+    State.completedSessions++;
+
+    // Unlock new lighthouse every 5 completed sessions
+    const newLhIdx = Math.floor(State.completedSessions / LIGHTHOUSE_UNLOCK_EVERY) % LIGHTHOUSES.length;
+    if (newLhIdx !== State.currentLighthouse) {
+      State.currentLighthouse = newLhIdx;
+    }
+
+    // N-back unlock
+    if (State.completedSessions >= NBACK_UNLOCK_SESSION) {
+      State.nbackUnlocked = true;
+    }
+
+    LS.save();
+    showClosing(State.hitCount);
+  }
+
+  // Game loop tick
+  let lastTime = null;
+  let shipAnim = null;  // current ship animation state
+
+  // Stateful trial runner
+  const trialQueue = {
+    currentTrial:  null,
+    state:         'iti',  // 'iti' | 'entering' | 'signaling' | 'exiting' | 'ended'
+    stateStart:    0,
+    responded:     false,
+    signalOnsetAbs: 0,
+  };
+
+  function nextTrial() {
+    // Switch phase every BLOCK_SIZE trials when nback is active
+    trialsInBlock++;
+    if (doNback && trialsInBlock > BLOCK_SIZE) {
+      trialsInBlock = 0;
+      blockPhase = blockPhase === 'go_nogo' ? 'nback' : 'go_nogo';
+      // Show phase transition card
+      schedulePhaseCard(blockPhase, () => runNextTrial());
+      return;
+    }
+    runNextTrial();
+  }
+
+  function runNextTrial() {
+    const diff  = getCurrentDifficulty();
+    const trial = createTrial(blockPhase, diff.itiMs);
+    trialQueue.currentTrial  = trial;
+    trialQueue.state         = 'iti';
+    trialQueue.stateStart    = performance.now();
+    trialQueue.responded     = false;
+    trialQueue.signalOnsetAbs = 0;
+
+    State.shipHistory.push(trial._symbol);
+    if (State.shipHistory.length > 5) State.shipHistory.shift();
+
+    // N-back hint visibility
+    if (blockPhase === 'nback') {
+      nbackHintEl.classList.add('visible');
+    } else {
+      nbackHintEl.classList.remove('visible');
+    }
+  }
+
+  function handleTap() {
+    if (sessionEnded) return;
+    const tq  = trialQueue;
+    const now = performance.now();
+    if ((tq.state === 'signaling' || tq.state === 'exiting') && !tq.responded) {
+      tq.responded = true;
+      const trial  = tq.currentTrial;
+      trial.responded = true;
+      trial.response_time_ms = Math.round(now - tq.signalOnsetAbs);
+
+      if (trial._isGo) {
+        // Hit
+        trial.correct  = true;
+        trial.outcome  = 'hit';
+        State.hitCount++;
+        flashLighthouse();
+        if (navigator.vibrate) navigator.vibrate(30);
+      } else {
+        // False alarm
+        trial.correct = false;
+        trial.outcome = 'false_alarm';
+      }
+      commitTrial(trial);
+    }
+  }
+
+  canvas.addEventListener('click', handleTap, { passive: true });
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    handleTap();
+  }, { passive: false });
+
+  // Draw loop
+  function tick(now) {
+    if (sessionEnded) return;
+
+    const elapsed = Date.now() - State.sessionStart;
+    // Progress bar
+    progressBar.style.width = Math.min(100, (elapsed / SESSION_DURATION_MS) * 100) + '%';
+
+    // Mid-session break
+    if (!breakTaken && elapsed >= BREAK_AT_MS && elapsed < BREAK_AT_MS + BREAK_DURATION_MS) {
+      if (trialQueue.state !== 'break') {
+        trialQueue.state = 'break';
+        showBreakScreen(() => {
+          breakTaken = true;
+          trialQueue.state = 'iti';
+          trialQueue.stateStart = performance.now();
+          showScreen('game');
+        });
+      }
+    }
+
+    // Session end
+    if (elapsed >= SESSION_DURATION_MS) {
+      endSession(true);
+      return;
+    }
+
+    if (trialQueue.state === 'break') {
+      gameLoop = requestAnimationFrame(tick);
+      return;
+    }
+
+    // Initialize first trial
+    if (!trialQueue.currentTrial) {
+      runNextTrial();
+    }
+
+    const tq    = trialQueue;
+    const trial = tq.currentTrial;
+    const diff  = getCurrentDifficulty();
+    const dt    = now - tq.stateStart;
+
+    // ── State machine ──
+    if (tq.state === 'iti') {
+      // Inter-trial interval: blank ocean
+      if (dt >= diff.itiMs) {
+        tq.state      = 'entering';
+        tq.stateStart = now;
+      }
+    } else if (tq.state === 'entering') {
+      // Ship enters; no signal yet. Crosses fog line = signal onset
+      const progress = Math.min(1, dt / diff.shipSpeedMs);
+      trial._progress = progress;
+
+      const fogLinePct = 0.42;
+      // Signal shows when ship reaches fog line
+      if (progress >= fogLinePct / 1.0 && !tq.signalOnsetAbs) {
+        tq.signalOnsetAbs = now;
+        trial.signal_onset_ms = Math.round(now - (tq.stateStart - dt + dt));
+        tq.state = 'signaling';
+        tq.stateStart = now;
+      }
+    } else if (tq.state === 'signaling') {
+      // Ship visible + signal active
+      trial._progress = Math.min(1, (tq.signalOnsetAbs - trialQueue.stateStart + dt + (now - tq.signalOnsetAbs)) / diff.shipSpeedMs);
+      const sigElapsed = now - tq.signalOnsetAbs;
+
+      if (sigElapsed >= diff.signalDurationMs) {
+        // Signal disappears — ship exits
+        tq.state      = 'exiting';
+        tq.stateStart = now;
+      }
+    } else if (tq.state === 'exiting') {
+      // Signal gone, ship continues off screen
+      if (!tq.responded) {
+        // No response yet — check if ship has exited
+        const totalElapsed = (now - tq.signalOnsetAbs) + diff.signalDurationMs;
+        if (totalElapsed >= diff.shipSpeedMs * 0.6) {
+          // Ship exited without response — finalize trial
+          trial.responded = false;
+          trial.response_time_ms = null;
+          if (trial._isGo) {
+            trial.correct = false;
+            trial.outcome = 'miss';
+          } else {
+            trial.correct = true;
+            trial.outcome = 'correct_rejection';
+          }
+          commitTrial(trial);
+          tq.state = 'ended';
+          tq.stateStart = now;
+        }
+      }
+      // Also end if responded already
+      if (tq.responded && dt > 200) {
+        tq.state      = 'ended';
+        tq.stateStart = now;
+      }
+    } else if (tq.state === 'ended') {
+      if (dt >= 100) {
+        nextTrial();
+      }
+    }
+
+    // ── Render ──
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    drawOcean(W, H);
+    drawFogLayer(W, H, Date.now());
+    drawFogLine(W, H);
+    drawLighthouse(W, H);
+
+    if (tq.currentTrial && tq.state !== 'iti' && tq.state !== 'ended') {
+      const prog = tq.currentTrial._progress || 0;
+      const shipX = -0.15 + prog * 1.3;  // -0.15 → 1.15 (off-screen to off-screen)
+
+      const showSignal  = tq.state === 'signaling';
+      const showSymbol  = tq.state === 'signaling' || tq.state === 'entering';
+      const signalAlpha = showSignal
+        ? Math.min(1, (now - tq.signalOnsetAbs) / 200)  // 200ms fade-in
+        : 0;
+
+      const isNback = trial._phase === 'nback';
+      drawShip({
+        x:            shipX,
+        symbol:       trial._symbol,
+        symbolVisible: isNback && showSymbol,
+        signalVisible: !isNback && showSignal,
+        signalColor:  trial._isGo ? '#4ADE80' : '#F87171',
+        signalAlpha,
+      }, W, H);
+    }
+
+    gameLoop = requestAnimationFrame(tick);
+  }
+
+  gameLoop = requestAnimationFrame(tick);
+
+  // Finish-early button
+  document.getElementById('finish-btn').onclick = () => {
+    endSession(false);
+  };
+
+  // Needed: kick off first trial after a short pause
+  trialQueue.stateStart = performance.now();
+}
+
+// Fix the entering→signaling progress tracking
+// The entering state drives progress by dt/shipSpeedMs
+// At fogLine pct the signal triggers — rewritten to fix off-by-one
+
+function commitTrial(trial) {
+  // Update recent accuracy window
+  State.recentCorrect.push(trial.correct);
+  if (State.recentCorrect.length > 10) State.recentCorrect.shift();
+  adaptDifficulty();
+
+  State.sessionTrials.push(trial);
+  State.trialCount++;
+
+  // Strip runtime-only fields before storing
+  const storable = Object.fromEntries(
+    Object.entries(trial).filter(([k]) => !k.startsWith('_'))
+  );
+  dbPut('trials', storable).catch(console.error);
+}
+
+// ── Lighthouse glow flash ─────────────────────────────────────────
+
+function flashLighthouse() {
+  const el = document.getElementById('lh-glow');
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 150);
+}
+
+// ── Mid-session break ─────────────────────────────────────────────
+
+function showBreakScreen(onDone) {
+  showScreen('break');
+  const bar     = document.getElementById('break-bar');
+  const start   = Date.now();
+  const DURATION = BREAK_DURATION_MS;
+  const iv = setInterval(() => {
+    const pct = Math.min(100, ((Date.now() - start) / DURATION) * 100);
+    bar.style.width = pct + '%';
+    if (pct >= 100) {
+      clearInterval(iv);
+      onDone();
+    }
+  }, 100);
+}
+
+// ── Phase transition card ─────────────────────────────────────────
+
+function schedulePhaseCard(newPhase, onDone) {
+  showScreen('game'); // keep game screen but pause
+  const titleEl = document.getElementById('phase-title');
+  const ruleEl  = document.getElementById('phase-rule');
+
+  if (newPhase === 'nback') {
+    titleEl.textContent = 'Fog thickens.';
+    ruleEl.innerHTML    = 'Now watch the sails.<br>Tap if this ship\'s symbol<br>matches the one from 2 ships ago.';
+  } else {
+    titleEl.textContent = 'Fog lifts.';
+    ruleEl.innerHTML    = 'Back to signals.<br>Green: tap. Red: hold.';
+  }
+
+  showScreen('phase');
+  document.getElementById('phase-continue').onclick = () => {
+    showScreen('game');
+    onDone();
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CLOSING CARD
+// ════════════════════════════════════════════════════════════════════
+
+function showClosing(hitCount) {
+  document.getElementById('closing-count').textContent = hitCount;
+  const line = CLOSING_LINES[Math.floor(Math.random() * CLOSING_LINES.length)];
+  document.getElementById('closing-narrative').textContent = line;
+  showScreen('closing');
+}
+
+document.getElementById('closing-done').addEventListener('click', () => {
+  updateTitleScreen();
+  showScreen('title');
+});
+
+// ════════════════════════════════════════════════════════════════════
+// TITLE SCREEN
+// ════════════════════════════════════════════════════════════════════
+
+function updateTitleScreen() {
+  const lh = LIGHTHOUSES[State.currentLighthouse];
+  document.getElementById('title-location').textContent  = lh.name;
+  document.getElementById('streak-display').textContent  = State.streak;
+}
+
+// Long-press on location name → parent screen
+let lpTimer = null;
+const locationEl = document.getElementById('title-location');
+locationEl.addEventListener('pointerdown', () => {
+  lpTimer = setTimeout(() => {
+    lpTimer = null;
+    showParentScreen();
+  }, 2000);
+});
+locationEl.addEventListener('pointerup',   () => { clearTimeout(lpTimer); lpTimer = null; });
+locationEl.addEventListener('pointerleave',() => { clearTimeout(lpTimer); lpTimer = null; });
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  // Show opening card
+  const lh = LIGHTHOUSES[State.currentLighthouse];
+  document.getElementById('opening-location').textContent = lh.name;
+  document.getElementById('opening-weather').textContent  = lh.weather;
+  const parts = lh.narrative.split('\n');
+  document.getElementById('opening-narrative').innerHTML  = parts.join('<br>');
+  showScreen('opening');
+});
+
+document.getElementById('opening-continue').addEventListener('click', () => {
+  startSession();
+});
+
+// ════════════════════════════════════════════════════════════════════
+// PARENT SCREEN
+// ════════════════════════════════════════════════════════════════════
+
+async function showParentScreen() {
+  // Populate stats
+  const sessions = await dbGetAll('sessions');
+  const trials   = await dbGetAll('trials');
+
+  const uniqueDays = new Set(sessions.map(s => s.started_at.slice(0, 10))).size;
+  document.getElementById('stat-days').textContent     = uniqueDays;
+  document.getElementById('stat-sessions').textContent = sessions.length;
+  document.getElementById('stat-location').textContent = LIGHTHOUSES[State.currentLighthouse].name;
+  document.getElementById('stat-diff').textContent     = State.difficultyLevel;
+
+  // Build last-14-days data
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    days.push(d);
+  }
+
+  const dayAccuracy = {};
+  const dayRT       = {};
+  days.forEach(d => { dayAccuracy[d] = null; dayRT[d] = null; });
+
+  sessions.forEach(s => {
+    const d = s.started_at.slice(0, 10);
+    if (dayAccuracy[d] !== undefined) {
+      dayAccuracy[d] = (dayAccuracy[d] === null) ? s.accuracy_pct : (dayAccuracy[d] + s.accuracy_pct) / 2;
+      if (s.median_go_rt_ms) {
+        dayRT[d] = (dayRT[d] === null) ? s.median_go_rt_ms : (dayRT[d] + s.median_go_rt_ms) / 2;
+      }
+    }
+  });
+
+  renderLineChart('chart-accuracy', days, days.map(d => dayAccuracy[d]), 0, 1, v => v === null ? null : Math.round(v * 100) + '%');
+  renderLineChart('chart-rt',       days, days.map(d => dayRT[d]),       0, 1200, v => v === null ? null : Math.round(v) + 'ms');
+
+  showScreen('parent');
+}
+
+function renderLineChart(id, labels, values, yMin, yMax, fmt) {
+  const svg = document.getElementById(id);
+  const W   = 320;
+  const H   = 80;
+  const PAD = { top: 8, right: 8, bottom: 18, left: 8 };
+
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+
+  const defined = values.filter(v => v !== null);
+  const dataMin = defined.length ? Math.min(...defined) : 0;
+  const dataMax = defined.length ? Math.max(...defined) : yMax;
+  const range   = Math.max(dataMax - dataMin, 0.0001);
+
+  function px(i) { return PAD.left + (i / (labels.length - 1)) * plotW; }
+  function py(v) { return PAD.top + plotH - ((v - dataMin) / range) * plotH; }
+
+  let path = '';
+  let dots = '';
+  let first = true;
+  values.forEach((v, i) => {
+    if (v === null) { first = true; return; }
+    const x = px(i), y = py(v);
+    path += first ? `M${x},${y}` : `L${x},${y}`;
+    first = false;
+    dots += `<circle cx="${x}" cy="${y}" r="2.5" fill="#F59E0B"/>`;
+  });
+
+  // X-axis labels (first and last)
+  const labelHtml = `
+    <text x="${PAD.left}" y="${H - 2}" font-size="10" fill="#6B7280" font-family="Space Grotesk,sans-serif">${labels[0].slice(5)}</text>
+    <text x="${W - PAD.right}" y="${H - 2}" font-size="10" fill="#6B7280" text-anchor="end" font-family="Space Grotesk,sans-serif">${labels[labels.length-1].slice(5)}</text>
+  `;
+
+  svg.innerHTML = `
+    <line x1="${PAD.left}" y1="${H - PAD.bottom}" x2="${W - PAD.right}" y2="${H - PAD.bottom}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <path d="${path}" stroke="#F59E0B" stroke-width="1.5" fill="none"/>
+    ${dots}
+    ${labelHtml}
+  `;
+}
+
+document.getElementById('parent-close').addEventListener('click', () => {
+  showScreen('title');
+});
+
+// ── Export ────────────────────────────────────────────────────────
+
+document.getElementById('export-btn').addEventListener('click', async () => {
+  const sessions = await dbGetAll('sessions');
+  const trials   = await dbGetAll('trials');
+
+  const sessionCols = ['session_id','started_at','ended_at','duration_ms','completed','lighthouse','total_trials','accuracy_pct','median_go_rt_ms','commission_error_rate','final_difficulty_level','notes'];
+  const trialCols   = ['trial_id','session_id','timestamp_ms','phase','trial_type','stimulus','signal_onset_ms','responded','response_time_ms','correct','outcome','difficulty_level','lighthouse'];
+
+  function toCSV(cols, rows) {
+    const esc = v => (v === null || v === undefined) ? '' : String(v).includes(',') ? `"${String(v).replace(/"/g,'""')}"` : String(v);
+    return [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n');
+  }
+
+  const sessionCSV = '=== SESSIONS ===\n' + toCSV(sessionCols, sessions);
+  const trialCSV   = '\n\n=== TRIALS ===\n' + toCSV(trialCols, trials);
+  const combined   = sessionCSV + trialCSV;
+
+  const initials = State.initials || 'XX';
+  const date     = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const filename = `signalkeeper_${initials}_${date}.csv`;
+
+  const blob = new Blob([combined], { type: 'text/csv' });
+  const file = new File([blob], filename, { type: 'text/csv' });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Signal Keeper Data' });
+      return;
+    } catch (_) {}
+  }
+
+  // Fallback: download link
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href    = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+});
+
+// ── Reset ─────────────────────────────────────────────────────────
+
+document.getElementById('reset-btn').addEventListener('click', async () => {
+  const confirmed = window.confirm('Delete all Signal Keeper data? This cannot be undone.');
+  if (!confirmed) return;
+  await dbClear('trials');
+  await dbClear('sessions');
+  localStorage.removeItem('sk_state');
+  Object.assign(State, {
+    initials: '', currentLighthouse: 0, streak: 0,
+    lastPlayedDate: null, completedSessions: 0, difficultyLevel: 0, nbackUnlocked: false,
+  });
+  showScreen('firstrun');
+});
+
+// ════════════════════════════════════════════════════════════════════
+// FIRST-RUN
+// ════════════════════════════════════════════════════════════════════
+
+document.getElementById('firstrun-btn').addEventListener('click', () => {
+  const val = document.getElementById('initials-input').value.trim().toUpperCase();
+  if (!val) return;
+  State.initials = val;
+  LS.save();
+  updateTitleScreen();
+  showScreen('title');
+});
+
+document.getElementById('initials-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('firstrun-btn').click();
+});
+
+// ════════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════════
+
+async function boot() {
+  LS.load();
+  db = await openDB();
+
+  if (!State.initials) {
+    showScreen('firstrun');
+    return;
+  }
+
+  // Check streak continuity
+  const today     = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (State.lastPlayedDate && State.lastPlayedDate !== today && State.lastPlayedDate !== yesterday) {
+    State.streak = 0;
+    LS.save();
+  }
+
+  updateTitleScreen();
+  showScreen('title');
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+boot().catch(console.error);
+</script>
+</body>
+</html>
